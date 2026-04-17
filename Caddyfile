@@ -1,20 +1,18 @@
 # Caddyfile pro produkci na VPS.
-# Doména se čte z ENV přes substitution. Caddy 2+ podporuje {env.CADDY_DOMAIN}.
-#
-# Lokálně se tento soubor nepoužívá — Caddy běží pouze s profilem `production`.
+# Proměnné substituované v čase adaptace: {$VAR_NAME}
+# (Caddy 2 syntaxe, viz https://caddyserver.com/docs/caddyfile/concepts#environment-variables)
 
 {
-    email {env.CADDY_EMAIL}
-    # Servery (log, admin API bind pouze na localhost)
+    email {$CADDY_EMAIL}
     admin localhost:2019
 }
 
-{env.CADDY_DOMAIN} {
+{$CADDY_DOMAIN} {
     encode zstd gzip
 
-    # BasicAuth — generuj hash: docker run --rm caddy:2 caddy hash-password --plaintext "tvojeHeslo"
+    # BasicAuth — bcrypt hash v env (escape $ → $$ v .env kvůli docker-compose)
     basic_auth {
-        {env.CADDY_BASIC_AUTH_USER} {env.CADDY_BASIC_AUTH_HASH}
+        {$CADDY_BASIC_AUTH_USER} {$CADDY_BASIC_AUTH_HASH}
     }
 
     # API backend (REST + WebSocket)
