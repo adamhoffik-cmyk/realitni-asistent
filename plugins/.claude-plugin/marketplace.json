@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "realitni-asistent-local",
+  "description": "Lokální marketplace pluginů pro Realitního Asistenta (VPS deploy)",
+  "owner": {
+    "name": "Adam Hoffík"
+  },
+  "plugins": [
+    {
+      "name": "legal",
+      "description": "Právní plugin pro české prostředí a realitní praxi — 9 skillů pro kontrolu smluv, NDA triage, GDPR compliance, právní rizika a briefingy. Upraveno pro české právo (OZ 89/2012, ZRZ 39/2020, GDPR, AML).",
+      "category": "legal",
+      "author": {
+        "name": "Anthropic (upraveno pro ČR)"
+      },
+      "source": "./ceske-realitni-pravo",
+      "homepage": "https://github.com/adamhoffik-cmyk/realitni-asistent/tree/main/plugins/ceske-realitni-pravo"
+    }
+  ]
+}
