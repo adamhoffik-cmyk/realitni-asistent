@@ -80,10 +80,16 @@ sed -i "s|^NEXT_PUBLIC_WS_BASE_URL=.*|NEXT_PUBLIC_WS_BASE_URL=wss://$DOMAIN|" .e
 
 # Claude home mount pro backend
 CLAUDE_HOME="${HOME}/.claude"
+CLAUDE_JSON="${HOME}/.claude.json"
 if grep -q "^CLAUDE_HOME=" .env; then
     sed -i "s|^CLAUDE_HOME=.*|CLAUDE_HOME=$CLAUDE_HOME|" .env
 else
     echo "CLAUDE_HOME=$CLAUDE_HOME" >> .env
+fi
+if grep -q "^CLAUDE_JSON=" .env; then
+    sed -i "s|^CLAUDE_JSON=.*|CLAUDE_JSON=$CLAUDE_JSON|" .env
+else
+    echo "CLAUDE_JSON=$CLAUDE_JSON" >> .env
 fi
 
 echo ""

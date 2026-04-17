@@ -97,11 +97,13 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app ./app
 RUN mkdir -p data/chroma data/reference_articles data/articles/drafts \
              data/articles/published data/transcripts data/video_scripts \
-             data/uploads && \
-    chown -R app:app /app /home/app
+             data/uploads
 
-USER app
-ENV HOME=/home/app
+# Kontejner běží jako root — sdílené UID s mountovaným /root/.claude z hostu.
+# Pro single-user on-premise aplikaci akceptovatelná volba (úspora boje s
+# permissions mezi hostem a containerem). Všechny služby jsou stejně izolované
+# v Docker networku a Caddy je jediná veřejná plocha.
+ENV HOME=/root
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

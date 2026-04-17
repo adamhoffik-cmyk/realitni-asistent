@@ -25,9 +25,12 @@ services:
     volumes:
       - ./backend/data:/app/data
       # Claude Code CLI login + pluginy — sdíleno s hostem (rw kvůli session state).
-      # V backend containeru je Claude CLI nainstalovaný (viz Dockerfile), ale
-      # ~/.claude/ s credentials + plugins musí být na hostu (Claude Max login).
-      - ${CLAUDE_HOME:-./.skip}:/home/app/.claude
+      # Kontejner běží jako root, takže mapujeme /root/.claude (host) → /root/.claude (container).
+      - ${CLAUDE_HOME:-./.skip}:/root/.claude
+      # Hlavní config soubor Claude CLI (separátní od /root/.claude/ adresáře).
+      # Pokud na hostu neexistuje, vytvoř ho před prvním spuštěním:
+      #   cp /root/.claude/backups/.claude.json.backup.<timestamp> /root/.claude.json
+      - ${CLAUDE_JSON:-./.skip/.claude.json}:/root/.claude.json
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped
