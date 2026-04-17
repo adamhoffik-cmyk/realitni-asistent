@@ -36,8 +36,11 @@ backend/data/
 data/
 !data/.gitkeep
 
-# ===== Modely (stahujou se runtime) =====
-models/
+# ===== Stažené ML modely (whisper, embeddingy) =====
+# Pozor: NE backend/app/models/ — to jsou SQLAlchemy ORM!
+# Proto uzamykáme jen konkrétní lokace kde se stahují runtime artefakty.
+/data/models/
+backend/data/models/
 *.bin
 *.safetensors
 *.gguf
