@@ -73,8 +73,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         ca-certificates \
         gnupg \
-        passwd \
-        adduser \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
         | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
@@ -82,8 +80,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         > /etc/apt/sources.list.d/nodesource.list \
     && apt-get update && apt-get install -y --no-install-recommends nodejs \
     && npm install -g @anthropic-ai/claude-code \
-    && rm -rf /var/lib/apt/lists/* /root/.npm \
-    && useradd -m -s /bin/bash -u 1000 app
+    && rm -rf /var/lib/apt/lists/* /root/.npm
+
+# Vytvoř user `app` (UID 1000) přímou editací /etc/passwd — obejdeme problém,
+# že python:3.11-slim neobsahuje `useradd` ani v PATH, ani v expected location.
+RUN echo 'app:x:1000:1000::/home/app:/bin/bash' >> /etc/passwd \
+    && echo 'app:x:1000:' >> /etc/group \
+    && mkdir -p /home/app \
+    && chown 1000:1000 /home/app
 
 WORKDIR /app
 
