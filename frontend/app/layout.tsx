@@ -32,21 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="cs" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var t = localStorage.getItem('theme') || 'matrix';
-                  if (t === 'readable') document.documentElement.classList.add('readable');
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
+    <html lang="cs">
       <body>
         <MatrixRain />
         <Providers>{children}</Providers>

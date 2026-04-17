@@ -19,14 +19,6 @@ const config: Config = {
           glow: "#39FF14",      // extra glow variant
           dim: "#0A2F0A",       // nejtmavší bg tile
         },
-        // Čitelný režim (readable) — Matrix estetika, ale vyšší kontrast
-        readable: {
-          bg: "#0A0F0A",
-          green: "#A8FFB0",     // mnohem světlejší zelená
-          mid: "#5FDD6F",
-          dark: "#1E3F20",
-          text: "#D0FFD8",
-        },
       },
       fontFamily: {
         mono: [
@@ -39,7 +31,6 @@ const config: Config = {
       boxShadow: {
         "matrix-glow": "0 0 10px rgba(0, 255, 65, 0.5), 0 0 20px rgba(0, 255, 65, 0.25)",
         "matrix-glow-strong": "0 0 15px rgba(0, 255, 65, 0.8), 0 0 30px rgba(0, 255, 65, 0.4)",
-        "readable-glow": "0 0 8px rgba(168, 255, 176, 0.35)",
       },
       animation: {
         "pulse-green": "pulseGreen 2s ease-in-out infinite",

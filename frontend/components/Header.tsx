@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTheme } from "@/app/providers";
-import { Eye, EyeOff, MessageSquare } from "lucide-react";
+import Link from "next/link";
+import { MessageSquare } from "lucide-react";
 
 export function Header({ onOpenChat }: { onOpenChat: () => void }) {
-  const { theme, toggle } = useTheme();
   const [now, setNow] = useState<Date>(new Date());
 
   useEffect(() => {
@@ -27,20 +26,13 @@ export function Header({ onOpenChat }: { onOpenChat: () => void }) {
 
   return (
     <header className="flex items-center justify-between px-4 py-3 border-b border-matrix backdrop-blur-sm">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={toggle}
-          className="text-matrix-dim hover:text-matrix transition p-1"
-          aria-label="Přepnout téma"
-          title={theme === "matrix" ? "Čitelný režim" : "Matrix režim"}
-        >
-          {theme === "matrix" ? <Eye size={18} /> : <EyeOff size={18} />}
-        </button>
-        <h1 className="text-matrix text-lg font-bold tracking-wider animate-flicker">
-          REALITNÍ ASISTENT
-        </h1>
-      </div>
+      <Link
+        href="/"
+        className="text-matrix text-lg font-bold tracking-wider animate-flicker hover:text-matrix-glow transition no-underline"
+        title="Domů"
+      >
+        REALITNÍ ASISTENT
+      </Link>
 
       <div className="hidden sm:flex flex-col items-end">
         <span className="text-matrix font-mono text-2xl lg:text-3xl font-bold tracking-wider">

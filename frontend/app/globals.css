@@ -14,14 +14,6 @@
   --color-glow: rgba(0, 255, 65, 0.5);
 }
 
-html.readable {
-  --color-bg: #0A0F0A;
-  --color-fg: #A8FFB0;
-  --color-fg-mid: #5FDD6F;
-  --color-fg-dim: #1E3F20;
-  --color-glow: rgba(168, 255, 176, 0.35);
-}
-
 html, body {
   margin: 0;
   padding: 0;
@@ -29,11 +21,6 @@ html, body {
   color: var(--color-fg);
   font-family: "JetBrains Mono", monospace;
   overflow-x: hidden;
-}
-
-html.readable body {
-  line-height: 1.7;
-  letter-spacing: 0.01em;
 }
 
 /* Scrollbar — tenký, zelený */
@@ -104,10 +91,6 @@ html.readable body {
   z-index: -1;
   opacity: 0.12;
   pointer-events: none;
-}
-
-html.readable .digital-rain {
-  display: none;
 }
 
 /* Markdown content v chatu */
