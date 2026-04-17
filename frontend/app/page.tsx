@@ -9,6 +9,7 @@ import { CalendarWidget } from "@/components/CalendarWidget";
 import { NewsWidget } from "@/components/NewsWidget";
 import { SkillTile } from "@/components/SkillTile";
 import { QuickNote } from "@/components/QuickNote";
+import { RecentNotesWidget } from "@/components/RecentNotesWidget";
 import { ChatPanel } from "@/components/ChatPanel";
 import { endpoints, type Skill } from "@/lib/api";
 
@@ -63,6 +64,8 @@ export default function HomePage() {
           />
 
           <QuickNote />
+
+          <RecentNotesWidget />
 
           <NewsWidget />
         </div>

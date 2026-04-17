@@ -124,7 +124,7 @@ async def generate_article(
             logger.warning("Fetch source_url failed: %s", exc)
             source_content = f"(Zdroj nedostupný: {exc})"
 
-    # 2. Připrav system prompt pro Claude
+    # 2. Připrav system prompt pro Claude — research-first
     if mode == "B_legalized":
         prompt = f"""Vygeneruj mi vlastní článek na téma tohoto zdroje, ale NECITUJ
 doslovně — přepiš vlastními slovy, přidej vlastní úhel pohledu, pomoz
@@ -137,12 +137,19 @@ ZDROJOVÝ OBSAH:
 {source_content[:8000]}
 ---
 
-Pokud vidíš právní informace, ověř jejich aktuálnost — je rok 2026.
-Přidej disclaimer u právních pasáží. Nedávej generický závěr, radši
-konkrétní praktickou radu pro realitní praxi.
+DŮLEŽITÉ:
+1) PŘED napsáním článku použij WebSearch a ověř všechna klíčová fakta
+   pro rok 2026 — zvlášť číselné limity (Kč), novely zákonů, sazby ČNB,
+   ceny nemovitostí. Autor zdroje nemusí být aktuální.
+2) Speciálně si ověř: limity drobných oprav nájemníka (nařízení vlády
+   308/2015 + novely), změny ZRZ 39/2020, RP daňové limity pro rok 2026.
+3) Pokud je v originále nějaké číslo v Kč nebo rok, ověř ho websearchem.
+4) U právních pasáží vždy cituj konkrétní zákon / nařízení a rok novely.
+5) Přidej disclaimer: "Toto není právní rada. Pro konkrétní případy
+   konzultujte advokáta."
 
-Vrať POUZE markdown obsah článku (bez metadat, bez úvodních "Zde je článek:"
-apod.). Začni nadpisem # a pak obsah."""
+Vrať POUZE markdown obsah článku (bez metadat, bez úvodních "Zde je článek:").
+Začni nadpisem # a pak obsah."""
     else:
         prompt = f"""Napiš mi nový článek na téma: "{topic}"
 
@@ -151,19 +158,29 @@ Délka: 600-900 slov, český jazyk, markdown.
 Styl: profesionální ale lidský, s konkrétními příklady, checklist body
 kde to dává smysl.
 
-Pokud jsou relevantní právní aspekty (ZRZ 39/2020, OZ 89/2012, GDPR, AML),
-zahrň je s disclaimerem.
+DŮLEŽITÉ:
+1) PŘED napsáním použij WebSearch a najdi aktuální data pro 2026 —
+   zákonné limity, ČNB sazby, statistiky, novely.
+2) Uvažuj, co by v článku NEMĚLO chybět: konkrétní limity v Kč,
+   čísla zákonů a jejich novely, odkazy na ČNB/ČSÚ pokud relevantní.
+3) Pokud jsou relevantní právní aspekty (ZRZ 39/2020, OZ 89/2012,
+   GDPR, AML, nařízení 308/2015), zahrň je s disclaimerem.
 
 Vrať POUZE markdown obsah článku (# nadpis + obsah)."""
 
-    # 3. Stream od Claude
+    # 3. Stream od Claude — povolit WebSearch + WebFetch
     claude = get_claude_client()
     buffer: list[str] = []
     error_msg: str | None = None
 
     async for event in claude.stream(
         messages=[ClaudeMessage(role="user", content=prompt)],
-        system_prompt="Jsi copywriter realitního makléře. Piš česky, věcně, s přidanou hodnotou.",
+        system_prompt=(
+            "Jsi copywriter realitního makléře. Piš česky, věcně, s přidanou "
+            "hodnotou. VŽDY ověř číselné limity a právní fakta přes WebSearch "
+            "před tím, než je napíšeš do článku — Claude data končí v lednu 2025."
+        ),
+        allowed_tools=["WebSearch", "WebFetch", "Read", "Grep", "Glob"],
     ):
         if event.type == "token":
             buffer.append(event.data)
@@ -179,6 +196,48 @@ Vrať POUZE markdown obsah článku (# nadpis + obsah)."""
     content_md = "".join(buffer).strip()
     if not content_md:
         raise HTTPException(502, detail="Claude vrátil prázdný obsah")
+
+    # 3b. Self-review pass — druhý Claude call kontroluje draft
+    review_prompt = f"""Jsi editor článku o realitách pro český trh 2026.
+
+Zde je DRAFT článku:
+---
+{content_md}
+---
+
+ÚKOL: Projdi draft a vyhodnoť, jestli mu něco CHYBÍ, co by bylo důležité.
+Konkrétně:
+- Chybí konkrétní číselné limity v Kč (třeba limit drobných oprav
+  nájemníka podle nařízení 308/2015, daňové limity, ČNB sazby)?
+- Chybí reference na aktuální zákony a jejich novely (2026)?
+- Chybí praktické příklady nebo checklist?
+- Je článek správně zacílený na realitního klienta v ČR?
+
+Pokud nic zásadního nechybí, vrať pouze text: OK
+Pokud něco chybí, PŘEPIŠ celý článek s doplněnými informacemi (použij
+WebSearch pro ověření faktů 2026) a vrať celý opravený markdown.
+"""
+
+    try:
+        review_buffer: list[str] = []
+        async for event in claude.stream(
+            messages=[ClaudeMessage(role="user", content=review_prompt)],
+            system_prompt="Jsi editor realitního obsahu. Přísný na fakta a úplnost.",
+            allowed_tools=["WebSearch", "WebFetch"],
+        ):
+            if event.type == "token":
+                review_buffer.append(event.data)
+            elif event.type == "error":
+                break
+            elif event.type == "done":
+                break
+        review_text = "".join(review_buffer).strip()
+        # Pokud editor vrátil opravu (začíná # nebo obsahuje >200 znaků), použij ji
+        if review_text and not review_text.upper().startswith("OK") and len(review_text) > 300:
+            logger.info("Self-review upgraded article (+%d chars)", len(review_text) - len(content_md))
+            content_md = review_text
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Self-review selhal: %s — ponechávám původní draft", exc)
 
     # Extrahuj nadpis z prvního # řádku
     title = topic or "Nový článek"

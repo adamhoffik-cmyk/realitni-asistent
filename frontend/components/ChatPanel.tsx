@@ -1,12 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send, X } from "lucide-react";
+import { RotateCcw, Send, X } from "lucide-react";
+import { api } from "@/lib/api";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+}
+
+// Persistence — session ID per context (home, articles, nabor, …) aby se
+// kontexty mezi sebou nemíchaly. Klíč: "chat_session:<context>".
+const STORAGE_KEY = (ctx: string) => `chat_session:${ctx}`;
+
+// Kolik posledních turnů z DB načíst při obnově (pro zobrazení).
+// Backend sliding window Claude SDK je separátní — zůstává 20.
+const DISPLAY_LOAD_LIMIT = 40;
+
+interface BackendTurn {
+  id: string;
+  session_id: string;
+  role: string;
+  content: string;
+  created_at: string;
 }
 
 export function ChatPanel({
@@ -24,7 +41,62 @@ export function ChatPanel({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const stickToBottomRef = useRef<boolean>(true);
+
+  // Load stored session + history při prvním otevření (nebo po context change).
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+
+    const restore = async () => {
+      const storedId =
+        typeof window !== "undefined"
+          ? localStorage.getItem(STORAGE_KEY(context))
+          : null;
+
+      if (!storedId) {
+        // Žádná předchozí session pro tento kontext
+        return;
+      }
+
+      try {
+        const turns = await api.get<BackendTurn[]>(
+          `/chat/sessions/${storedId}/turns`
+        );
+        if (cancelled) return;
+
+        if (!turns || turns.length === 0) {
+          // Session v localStorage existuje, ale v DB nic — vyčistit
+          localStorage.removeItem(STORAGE_KEY(context));
+          return;
+        }
+
+        // Zobrazit posledních N turnů (stačí pro scroll, šetříme RAM)
+        const recent = turns.slice(-DISPLAY_LOAD_LIMIT);
+        setSessionId(storedId);
+        setMessages(
+          recent
+            .filter((t) => t.role === "user" || t.role === "assistant")
+            .map((t) => ({
+              id: t.id,
+              role: t.role as "user" | "assistant",
+              content: t.content,
+            }))
+        );
+      } catch (e) {
+        // Session neexistuje (404 z DB) → začneme čerstvě
+        localStorage.removeItem(STORAGE_KEY(context));
+      }
+    };
+
+    restore();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, context]);
 
   // Autofocus při otevření + po odeslání zprávy
   useEffect(() => {
@@ -55,6 +127,12 @@ export function ChatPanel({
         const msg = JSON.parse(ev.data);
         if (msg.type === "session") {
           setSessionId(msg.data.id);
+          // Persist session id per context
+          try {
+            localStorage.setItem(STORAGE_KEY(context), msg.data.id);
+          } catch {
+            /* ignore */
+          }
         } else if (msg.type === "token") {
           setMessages((prev) => {
             const last = prev[prev.length - 1];
@@ -97,8 +175,25 @@ export function ChatPanel({
     };
   }, [open]);
 
+  // Auto-scroll JEN pokud je uživatel u spodního kraje (do 60 px).
+  // Když se uživatel posune nahoru, přestaneme za něj rolovat —
+  // jakmile ručně scrolluje k dolní části, zase zapneme.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const nearBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+      stickToBottomRef.current = nearBottom;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (stickToBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   const send = () => {
@@ -128,18 +223,42 @@ export function ChatPanel({
           <h2 className="text-matrix font-bold">● Chat</h2>
           <p className="text-xs text-matrix-dim">
             🟢 Režim: {context === "home" ? "obecný" : context}
+            {messages.length > 0 && (
+              <span className="ml-2">· {messages.length} zpráv</span>
+            )}
           </p>
         </div>
-        <button
-          onClick={onClose}
-          className="text-matrix-dim hover:text-matrix"
-          aria-label="Zavřít chat"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && (
+            <button
+              onClick={() => {
+                if (!confirm("Začít novou konverzaci? Historie se zachová v paměti.")) return;
+                localStorage.removeItem(STORAGE_KEY(context));
+                setSessionId(null);
+                setMessages([]);
+                setTimeout(() => inputRef.current?.focus(), 50);
+              }}
+              className="text-matrix-dim hover:text-matrix p-1"
+              title="Nový chat (aktuální konverzace zůstane uložená na serveru)"
+            >
+              <RotateCcw size={16} />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="text-matrix-dim hover:text-matrix p-1"
+            aria-label="Zavřít chat"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-3 space-y-3"
+        style={{ overscrollBehavior: "contain" }}
+      >
         {messages.length === 0 && (
           <p className="text-matrix-dim text-xs italic text-center mt-8">
             Napiš cokoliv a AI odpoví.<br />
