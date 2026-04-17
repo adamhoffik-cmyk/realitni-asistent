@@ -1,0 +1,102 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ===== Node / Next.js =====
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+.pnpm-store/
+
+# ===== Secrets / Env =====
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+!*.pub.key
+
+# ===== Data (per uživatelské rozhodnutí zatím bez záloh) =====
+backend/data/
+!backend/data/.gitkeep
+data/
+!data/.gitkeep
+
+# ===== Modely (stahujou se runtime) =====
+models/
+*.bin
+*.safetensors
+*.gguf
+
+# ===== Logy =====
+*.log
+logs/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# ===== Docker =====
+.docker/
+
+# ===== Testovací artefakty =====
+test_output/
+coverage.xml
+.hypothesis/
+
+# ===== Frontend build artefakty =====
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# ===== Python dist / build =====
+dist/
+build/
+*.egg
+
+# ===== Chroma DB runtime files =====
+chroma/
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# ===== Stažená videa (dočasné) =====
+downloads/
+*.mp4
+*.webm
+*.m4a
+*.wav
+
+# ===== Osobní poznámky uživatele (zdrojové materiály) =====
+# Tyto adresáře obsahují uživatelské training data,
+# nikoli kód. Nepushujeme je do gitu.
+REAL ESTATE/
+marketing material 2026/
+
+# ===== Claude Code session data =====
+.claude/sessions/
+.claude/cache/
