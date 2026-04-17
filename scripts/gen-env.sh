@@ -77,6 +77,7 @@ sed -i "s|^CADDY_DOMAIN=.*|CADDY_DOMAIN=$DOMAIN|" .env
 sed -i "s|^CADDY_EMAIL=.*|CADDY_EMAIL=$EMAIL|" .env
 sed -i "s|^NEXT_PUBLIC_API_BASE_URL=.*|NEXT_PUBLIC_API_BASE_URL=https://$DOMAIN|" .env
 sed -i "s|^NEXT_PUBLIC_WS_BASE_URL=.*|NEXT_PUBLIC_WS_BASE_URL=wss://$DOMAIN|" .env
+sed -i "s|^GOOGLE_REDIRECT_URI=.*|GOOGLE_REDIRECT_URI=https://$DOMAIN/api/auth/google/callback|" .env
 
 # Claude home mount pro backend
 CLAUDE_HOME="${HOME}/.claude"
