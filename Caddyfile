@@ -1,0 +1,53 @@
+# Caddyfile pro produkci na VPS.
+# Doména se čte z ENV přes substitution. Caddy 2+ podporuje {env.CADDY_DOMAIN}.
+#
+# Lokálně se tento soubor nepoužívá — Caddy běží pouze s profilem `production`.
+
+{
+    email {env.CADDY_EMAIL}
+    # Servery (log, admin API bind pouze na localhost)
+    admin localhost:2019
+}
+
+{env.CADDY_DOMAIN} {
+    encode zstd gzip
+
+    # BasicAuth — generuj hash: docker run --rm caddy:2 caddy hash-password --plaintext "tvojeHeslo"
+    basic_auth {
+        {env.CADDY_BASIC_AUTH_USER} {env.CADDY_BASIC_AUTH_HASH}
+    }
+
+    # API backend (REST + WebSocket)
+    handle /api/* {
+        reverse_proxy asistent-backend:8000
+    }
+
+    # SearXNG self-hosted search
+    handle /searxng/* {
+        uri strip_prefix /searxng
+        reverse_proxy asistent-searxng:8080
+    }
+
+    # Frontend (Next.js)
+    handle {
+        reverse_proxy asistent-frontend:3000
+    }
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
+    }
+}

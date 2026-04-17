@@ -1,0 +1,104 @@
+# Docker Compose pro vývoj i produkci.
+#
+# LOKÁLNÍ VÝVOJ (Windows + Docker Desktop):
+#   docker compose up -d --build
+#   Frontend: http://localhost:3000
+#   Backend API docs: http://localhost:8000/api/docs
+#
+# PRODUKCE (VPS):
+#   Zapne se profilem `production` → přidá Caddy reverse proxy + SearXNG
+#   docker compose --profile production up -d --build
+#
+# Claude Code CLI běží na HOSTOVI (ne v kontejneru) — backend do něj
+# sáhne přes mount ~/.claude/ (jen read). V budoucí fázi přes claude-agent-sdk.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: asistent-backend
+    env_file: .env
+    environment:
+      - DATABASE_URL=sqlite:///./data/app.db
+      - CHROMA_PERSIST_DIR=./data/chroma
+    volumes:
+      - ./backend/data:/app/data
+      # Claude Code CLI + pluginy — read-only mount z hosta
+      # V Dockeru nebude dostupný, dokud ho ve Fázi 1I neautorizujeme.
+      # Na Windows (Docker Desktop) se tento mount přeskočí přes .env override.
+      - ${CLAUDE_HOME:-./.skip}:/home/app/.claude:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    networks:
+      - asistent-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: asistent-frontend
+    env_file: .env
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_WS_BASE_URL=${NEXT_PUBLIC_WS_BASE_URL:-ws://localhost:8000}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    networks:
+      - asistent-net
+
+  # ----- Produkce -----
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: asistent-caddy
+    profiles: ["production"]
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - asistent-net
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: asistent-searxng
+    profiles: ["production"]
+    env_file: .env
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=https://${CADDY_DOMAIN}/searxng
+      - UWSGI_WORKERS=2
+      - UWSGI_THREADS=4
+    restart: unless-stopped
+    networks:
+      - asistent-net
+
+networks:
+  asistent-net:
+    driver: bridge
+
+volumes:
+  caddy-data:
+  caddy-config:
