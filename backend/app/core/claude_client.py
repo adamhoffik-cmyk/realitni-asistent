@@ -204,7 +204,18 @@ class ClaudeClient:
 
         except Exception as exc:  # noqa: BLE001
             logger.exception("Claude stream error")
-            yield ClaudeStreamEvent(type="error", data=f"Claude SDK chyba: {exc}")
+            # Zachyť co nejvíc detailů — SDK občas pchá stderr do různých atributů
+            details = []
+            for attr in ("stderr", "stdout", "output", "error", "response"):
+                val = getattr(exc, attr, None)
+                if val:
+                    if isinstance(val, bytes):
+                        val = val.decode("utf-8", errors="replace")
+                    details.append(f"[{attr}] {str(val)[:800]}")
+            detail_text = f"Claude SDK chyba: {exc}"
+            if details:
+                detail_text += "\n\n" + "\n\n".join(details)
+            yield ClaudeStreamEvent(type="error", data=detail_text)
 
 
 _client: ClaudeClient | None = None

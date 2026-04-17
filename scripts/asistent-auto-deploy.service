@@ -1,0 +1,12 @@
+[Unit]
+Description=Realitni Asistent — auto-deploy check (git pull + rebuild)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/realitni-asistent
+ExecStart=/bin/bash /opt/realitni-asistent/scripts/auto-deploy.sh
+User=root
+StandardOutput=append:/var/log/asistent-auto-deploy.log
+StandardError=append:/var/log/asistent-auto-deploy.log
