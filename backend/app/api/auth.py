@@ -29,6 +29,7 @@ async def google_authorize() -> RedirectResponse:
 @router.get("/google/callback", response_class=HTMLResponse)
 async def google_callback(
     code: str | None = Query(None),
+    state: str | None = Query(None),
     error: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
 ) -> HTMLResponse:
@@ -44,7 +45,7 @@ async def google_callback(
         raise HTTPException(400, detail="Chybí authorization code")
 
     try:
-        result = await google_oauth.exchange_code_for_tokens(code, session)
+        result = await google_oauth.exchange_code_for_tokens(code, state, session)
     except Exception as exc:
         logger.exception("OAuth exchange failed")
         return HTMLResponse(

@@ -25,6 +25,22 @@ logger = logging.getLogger(__name__)
 
 SERVICE_KEY = "google"  # unifikované — scopes zahrnují calendar i drive
 
+# In-memory store pro PKCE code_verifier mezi /auth/google (authorize) a /callback.
+# Google OAuth vyžaduje PKCE — při authorize se vygeneruje verifier, uloží se
+# pod 'state' klíčem, a při callbacku se použije stejný. Flow trvá < 60 s,
+# single-user app → in-memory dict stačí.
+_pending_verifiers: dict[str, tuple[str, float]] = {}
+
+
+def _cleanup_pending() -> None:
+    """Smaže verifiers starší než 10 min (safety — nebrání memory leak)."""
+    import time as _t
+
+    now = _t.time()
+    expired = [k for k, (_, ts) in _pending_verifiers.items() if now - ts > 600]
+    for k in expired:
+        _pending_verifiers.pop(k, None)
+
 
 def _flow_from_settings() -> Flow:
     settings = get_settings()
@@ -50,19 +66,42 @@ def _flow_from_settings() -> Flow:
 
 
 def build_authorization_url() -> tuple[str, str]:
-    """Vrátí (authorize_url, state) — state ulož do session/cookie."""
+    """Vrátí (authorize_url, state). Uloží PKCE code_verifier pro callback."""
+    import time as _t
+
+    _cleanup_pending()
     flow = _flow_from_settings()
     authorization_url, state = flow.authorization_url(
         access_type="offline",  # refresh token
         include_granted_scopes="true",
         prompt="consent",  # vynucuje refresh token i při re-auth
     )
+    # Google OAuth vyžaduje PKCE — uložíme code_verifier pod state klíčem,
+    # aby ho callback (v nové Flow instanci) mohl načíst
+    verifier = getattr(flow, "code_verifier", None)
+    if verifier:
+        _pending_verifiers[state] = (verifier, _t.time())
+        logger.debug("OAuth state=%s verifier uložen", state[:8])
     return authorization_url, state
 
 
-async def exchange_code_for_tokens(code: str, session: AsyncSession) -> dict[str, Any]:
+async def exchange_code_for_tokens(
+    code: str, state: str | None, session: AsyncSession
+) -> dict[str, Any]:
     """Vymění authorization code za tokeny a uloží šifrovaně."""
     flow = _flow_from_settings()
+
+    # Načti PKCE verifier z původní authorize response
+    if state and state in _pending_verifiers:
+        verifier, _ts = _pending_verifiers.pop(state)
+        flow.code_verifier = verifier
+        logger.debug("OAuth state=%s verifier obnoven", state[:8])
+    else:
+        logger.warning(
+            "OAuth state=%s verifier NENALEZEN — PKCE selže, pokud ho Google vyžaduje",
+            (state or "")[:8],
+        )
+
     flow.fetch_token(code=code)
     credentials = flow.credentials
 
