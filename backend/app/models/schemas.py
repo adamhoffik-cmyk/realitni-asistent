@@ -131,6 +131,21 @@ class NewsItemOut(ORMBase):
     summary: str | None
     published_at: datetime | None
     tags: list[str] | None
+    is_favorite: bool = False
+
+
+class FavoriteNewsIn(BaseModel):
+    news_item_id: str
+    note: str | None = None
+
+
+class FavoriteNewsOut(ORMBase):
+    id: str
+    news_item_id: str
+    note: str | None
+    article_id: str | None
+    created_at: datetime
+    news: NewsItemOut | None = None
 
 
 # ----- Briefing -----

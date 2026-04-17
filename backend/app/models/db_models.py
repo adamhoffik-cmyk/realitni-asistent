@@ -161,6 +161,26 @@ class NewsItem(Base):
 
 
 # --------------------------------------------------------------------------- #
+# Oblíbené novinky (pro workflow News → Article)
+# --------------------------------------------------------------------------- #
+class FavoriteNews(Base):
+    __tablename__ = "favorite_news"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    news_item_id: Mapped[str] = mapped_column(
+        ForeignKey("news_items.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)  # uživatelská poznámka
+    # Pokud uživatel vygeneruje článek z této novinky, odkaz na něj:
+    article_id: Mapped[str | None] = mapped_column(
+        ForeignKey("articles.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now)
+
+    news: Mapped["NewsItem"] = relationship(lazy="joined")
+
+
+# --------------------------------------------------------------------------- #
 # Ranní briefingy (historie)
 # --------------------------------------------------------------------------- #
 class Briefing(Base):
@@ -234,6 +254,7 @@ __all__ = [
     "CalendarEvent",
     "ConversationSession",
     "ConversationTurn",
+    "FavoriteNews",
     "NewsItem",
     "Note",
     "OAuthToken",

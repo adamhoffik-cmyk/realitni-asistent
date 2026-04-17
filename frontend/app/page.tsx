@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Database } from "lucide-react";
+import { Database, Heart } from "lucide-react";
 import { Header } from "@/components/Header";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { NewsWidget } from "@/components/NewsWidget";
@@ -75,6 +75,12 @@ export default function HomePage() {
             className="inline-flex items-center gap-2 px-4 py-2 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition"
           >
             <Database size={16} /> Paměť
+          </Link>
+          <Link
+            href="/favorites"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition"
+          >
+            <Heart size={16} /> Oblíbené
           </Link>
         </section>
 

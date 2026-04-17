@@ -42,9 +42,11 @@ export function Header({ onOpenChat }: { onOpenChat: () => void }) {
         </h1>
       </div>
 
-      <div className="hidden sm:flex flex-col items-end text-xs">
-        <span className="text-matrix font-mono">{timeStr}</span>
-        <span className="text-matrix-dim">{dateStr}</span>
+      <div className="hidden sm:flex flex-col items-end">
+        <span className="text-matrix font-mono text-2xl lg:text-3xl font-bold tracking-wider">
+          {timeStr}
+        </span>
+        <span className="text-matrix-dim text-sm lg:text-base">{dateStr}</span>
       </div>
 
       <button

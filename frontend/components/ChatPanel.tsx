@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Send, X } from "lucide-react";
 
 interface Message {
   id: string;
@@ -24,6 +24,21 @@ export function ChatPanel({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Autofocus při otevření + po odeslání zprávy
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!streaming && open) {
+      inputRef.current?.focus();
+    }
+  }, [streaming, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -151,20 +166,34 @@ export function ChatPanel({
       </div>
 
       <div className="border-t border-matrix p-3">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          placeholder="Napiš zprávu… (Enter = odeslat, Shift+Enter = nový řádek)"
-          rows={2}
-          className="w-full bg-transparent border border-matrix rounded p-2 text-matrix placeholder:text-matrix-dim/50 text-sm resize-none focus:outline-none focus:shadow-matrix-glow"
-          disabled={streaming}
-        />
+        <div className="flex gap-2 items-end">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder="Napiš zprávu… (Enter = odeslat, Shift+Enter = nový řádek)"
+            rows={2}
+            className="flex-1 bg-transparent border border-matrix rounded p-2 text-matrix placeholder:text-matrix-dim/50 text-sm resize-none focus:outline-none focus:shadow-matrix-glow"
+            disabled={streaming}
+          />
+          <button
+            type="button"
+            onClick={send}
+            disabled={!input.trim() || streaming}
+            className="shrink-0 px-3 py-3 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Odeslat"
+            title="Odeslat (Enter)"
+          >
+            <Send size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );

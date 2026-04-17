@@ -65,6 +65,7 @@ $RECYCLE.BIN/
 
 # ===== Docker =====
 .docker/
+.skip/
 
 # ===== Testovací artefakty =====
 test_output/

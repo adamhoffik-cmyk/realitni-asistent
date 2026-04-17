@@ -136,6 +136,32 @@ export interface NewsItem {
   summary: string | null;
   published_at: string | null;
   tags: string[] | null;
+  is_favorite?: boolean;
+}
+
+// ----- Articles -----
+export interface Article {
+  id: string;
+  slug: string;
+  title: string;
+  status: string;
+  mode: string;
+  content_md: string;
+  meta_description: string | null;
+  keywords: string[] | null;
+  source_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ----- Favorites -----
+export interface FavoriteNews {
+  id: string;
+  news_item_id: string;
+  note: string | null;
+  article_id: string | null;
+  created_at: string;
+  news: NewsItem | null;
 }
 
 export const endpoints = {
@@ -169,5 +195,27 @@ export const endpoints = {
     refresh: () => api.post<{ sources: Record<string, Record<string, number>> }>(
       "/news/refresh"
     ),
+  },
+  articles: {
+    list: (status?: string) =>
+      api.get<Article[]>(`/articles${status ? `?status=${status}` : ""}`),
+    get: (id: string) => api.get<Article>(`/articles/${id}`),
+    generate: (body: { source_url?: string; topic?: string; favorite_id?: string }) =>
+      api.post<Article>("/articles/generate", body),
+    update: (id: string, body: Partial<Article>) =>
+      api.patch<Article>(`/articles/${id}`, body),
+    delete: (id: string) => api.delete<void>(`/articles/${id}`),
+  },
+  favorites: {
+    list: () => api.get<FavoriteNews[]>("/favorites"),
+    add: (newsItemId: string, note?: string) =>
+      api.post<FavoriteNews>("/favorites", {
+        news_item_id: newsItemId,
+        note: note || null,
+      }),
+    removeByNews: (newsItemId: string) =>
+      api.delete<void>(`/favorites/news/${newsItemId}`),
+    updateNote: (favoriteId: string, note: string) =>
+      api.patch<FavoriteNews>(`/favorites/${favoriteId}`, { note }),
   },
 };
