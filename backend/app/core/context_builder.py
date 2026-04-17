@@ -11,10 +11,54 @@ Výstupy:
 """
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core import memory as mem
 from app.skills.registry import SkillRegistry
+
+
+_CZ_DAYS = [
+    "pondělí",
+    "úterý",
+    "středa",
+    "čtvrtek",
+    "pátek",
+    "sobota",
+    "neděle",
+]
+_CZ_MONTHS = [
+    "",
+    "ledna",
+    "února",
+    "března",
+    "dubna",
+    "května",
+    "června",
+    "července",
+    "srpna",
+    "září",
+    "října",
+    "listopadu",
+    "prosince",
+]
+
+
+def _now_prompt_block() -> str:
+    """Vrátí lidsky čitelný blok s aktuálním datem a časem v CZ timezone."""
+    settings = get_settings()
+    tz = ZoneInfo(settings.app_timezone or "Europe/Prague")
+    now = datetime.now(tz)
+    day_name = _CZ_DAYS[now.weekday()]
+    month_name = _CZ_MONTHS[now.month]
+    return (
+        f"Aktuální datum a čas: **{day_name} {now.day}. {month_name} {now.year}, "
+        f"{now.strftime('%H:%M')}** (timezone {tz.key}). "
+        f"Data z tvého tréninku mohou být starší — vždy ber jako pravdu tento čas."
+    )
 
 
 BASE_SYSTEM_PROMPT = """Jsi osobní AI asistent realitního makléře Adama Hoffíka
@@ -49,7 +93,7 @@ async def build_system_prompt(
     2. Aktuální kontext obrazovky (home / skill)
     3. Top-K relevantních vzpomínek z ChromaDB
     """
-    parts = [BASE_SYSTEM_PROMPT]
+    parts = [BASE_SYSTEM_PROMPT, _now_prompt_block()]
 
     # --- Context info ---
     if context and context != "home":
