@@ -127,6 +127,17 @@ export interface MemorySearchHit {
   score: number;
 }
 
+// ----- News -----
+export interface NewsItem {
+  id: string;
+  url: string;
+  source: string;
+  title: string;
+  summary: string | null;
+  published_at: string | null;
+  tags: string[] | null;
+}
+
 export const endpoints = {
   health: () => api.get<HealthResponse>("/health"),
   skills: () => api.get<Skill[]>("/skills"),
@@ -152,5 +163,11 @@ export const endpoints = {
     delete: (id: string) => api.delete<void>(`/notes/${id}`),
     search: (query: string, types?: string[], limit = 10) =>
       api.post<MemorySearchHit[]>("/notes/search", { query, types, limit }),
+  },
+  news: {
+    list: (limit = 10) => api.get<NewsItem[]>(`/news?limit=${limit}`),
+    refresh: () => api.post<{ sources: Record<string, Record<string, number>> }>(
+      "/news/refresh"
+    ),
   },
 };

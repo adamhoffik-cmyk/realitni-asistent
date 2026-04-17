@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Database } from "lucide-react";
 import { Header } from "@/components/Header";
 import { WeatherWidget } from "@/components/WeatherWidget";
+import { NewsWidget } from "@/components/NewsWidget";
 import { SkillTile } from "@/components/SkillTile";
 import { QuickNote } from "@/components/QuickNote";
 import { ChatPanel } from "@/components/ChatPanel";
@@ -65,11 +66,7 @@ export default function HomePage() {
 
           <QuickNote />
 
-          <PlaceholderTile
-            title="📰 Novinky"
-            subtitle="Scraper 8 zdrojů — Fáze 5"
-            className="md:col-span-2"
-          />
+          <NewsWidget />
         </div>
 
         <section className="flex gap-3 flex-wrap">

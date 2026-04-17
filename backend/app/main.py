@@ -8,9 +8,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import chat, health, notes, skills, weather
+from app.api import chat, health, news, notes, skills, weather
 from app.config import get_settings
 from app.db import Base, engine, enable_sqlite_wal
+from app.scheduler.startup import start_scheduler, stop_scheduler
 from app.skills.registry import SkillRegistry
 
 # Logging setup
@@ -44,9 +45,13 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Skill %s router namountován", skill.manifest.id)
 
+    # Scheduler (news scraping, ranní briefing)
+    start_scheduler()
+
     logger.info("Startup dokončen ✓")
     yield
     logger.info("Realitní Asistent backend se zastavuje")
+    stop_scheduler()
 
 
 app = FastAPI(
@@ -71,6 +76,7 @@ app.include_router(weather.router, prefix="/api")
 app.include_router(skills.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(notes.router, prefix="/api")
+app.include_router(news.router, prefix="/api")
 
 
 @app.get("/")
