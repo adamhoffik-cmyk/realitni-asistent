@@ -180,6 +180,8 @@ async def _check_google_oauth(session: AsyncSession) -> CheckResult:
 
 async def _check_claude_cli() -> CheckResult:
     """Claude Code CLI a plugin ceske-realitni-pravo."""
+    import json as _json
+
     settings = get_settings()
     claude_bin = settings.claude_cli_path
     which = shutil.which(claude_bin) or shutil.which("claude")
@@ -191,11 +193,11 @@ async def _check_claude_cli() -> CheckResult:
             message="Binárka nenalezena — chat nebude fungovat",
         )
 
-    # .claude.json musí existovat pro sessions
     home = os.environ.get("HOME", "/root")
     claude_json = Path(home) / ".claude.json"
     claude_dir = Path(home) / ".claude"
-    plugin_path = claude_dir / "plugins" / "marketplaces" / "realitni-asistent-local"
+    marketplaces_dir = claude_dir / "plugins" / "marketplaces"
+    known_marketplaces_json = claude_dir / "plugins" / "known_marketplaces.json"
 
     if not claude_json.exists():
         return CheckResult(
@@ -206,16 +208,55 @@ async def _check_claude_cli() -> CheckResult:
             details={"binary": which, "home": str(home)},
         )
 
-    plugin_status = "nainstalovaný" if plugin_path.exists() else "NEnainstalovaný"
+    # Plugin detekce — zkusíme 3 způsoby
+    plugin_found = False
+    plugin_details: dict[str, Any] = {}
+
+    # 1) Marketplace adresář (může mít různé jméno)
+    if marketplaces_dir.exists():
+        marketplaces = [d.name for d in marketplaces_dir.iterdir() if d.is_dir()]
+        plugin_details["marketplaces"] = marketplaces
+        # hledáme něco obsahující "realitni" nebo "legal" nebo "ceske"
+        for mp_name in marketplaces:
+            lower = mp_name.lower()
+            if "realitni" in lower or "ceske" in lower:
+                plugin_found = True
+                plugin_details["matched_marketplace"] = mp_name
+                break
+
+    # 2) known_marketplaces.json
+    if not plugin_found and known_marketplaces_json.exists():
+        try:
+            data = _json.loads(known_marketplaces_json.read_text(encoding="utf-8"))
+            names = list(data.keys()) if isinstance(data, dict) else []
+            plugin_details["known_marketplaces"] = names
+            for name in names:
+                if "realitni" in name.lower() or "ceske" in name.lower():
+                    plugin_found = True
+                    plugin_details["matched_in_known"] = name
+                    break
+        except Exception as exc:  # noqa: BLE001
+            plugin_details["known_marketplaces_error"] = str(exc)
+
+    # 3) .claude.json obsahuje zmínku o plugin legal
+    if not plugin_found and claude_json.exists():
+        try:
+            content = claude_json.read_text(encoding="utf-8", errors="ignore")
+            if '"legal"' in content or "realitni-asistent-local" in content:
+                plugin_found = True
+                plugin_details["found_in_claude_json"] = True
+        except Exception:  # noqa: BLE001
+            pass
+
+    plugin_status = "aktivní ✓" if plugin_found else "nedetekovaný"
+    status_level = "ok" if plugin_found else "info"
+
     return CheckResult(
         id="claude_cli",
         name="Claude Code CLI",
-        status="ok",
-        message=f"OK · plugin {plugin_status}",
-        details={
-            "binary": which,
-            "plugin_marketplace_found": plugin_path.exists(),
-        },
+        status=status_level,
+        message=f"CLI OK · plugin {plugin_status}",
+        details={"binary": which, **plugin_details},
     )
 
 
