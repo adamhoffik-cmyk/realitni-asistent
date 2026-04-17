@@ -31,6 +31,8 @@ RUN pip install --no-cache-dir \
         websockets>=13.1 \
         python-multipart>=0.0.17 \
         pydantic>=2.9 \
+        "pydantic[email]>=2.9" \
+        email-validator>=2.2.0 \
         pydantic-settings>=2.6 \
         sqlalchemy>=2.0.36 \
         alembic>=1.14.0 \
