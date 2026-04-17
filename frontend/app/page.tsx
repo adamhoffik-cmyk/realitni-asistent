@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Database } from "lucide-react";
 import { Header } from "@/components/Header";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { SkillTile } from "@/components/SkillTile";
@@ -69,6 +71,15 @@ export default function HomePage() {
             className="md:col-span-2"
           />
         </div>
+
+        <section className="flex gap-3 flex-wrap">
+          <Link
+            href="/memory"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition"
+          >
+            <Database size={16} /> Paměť
+          </Link>
+        </section>
 
         <section>
           <h2 className="text-matrix text-lg mb-3 tracking-wider">

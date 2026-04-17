@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import chat, health, skills, weather
+from app.api import chat, health, notes, skills, weather
 from app.config import get_settings
 from app.db import Base, engine, enable_sqlite_wal
 from app.skills.registry import SkillRegistry
@@ -70,6 +70,7 @@ app.include_router(health.router, prefix="/api")
 app.include_router(weather.router, prefix="/api")
 app.include_router(skills.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
+app.include_router(notes.router, prefix="/api")
 
 
 @app.get("/")

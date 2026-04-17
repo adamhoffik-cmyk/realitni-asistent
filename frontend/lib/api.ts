@@ -99,8 +99,58 @@ export interface Weather {
   fetched_at: string;
 }
 
+// ----- Notes / Memory -----
+export interface Note {
+  id: string;
+  type: string;
+  title: string | null;
+  content: string;
+  tags: string[] | null;
+  source: string | null;
+  sensitivity: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteIn {
+  type?: string;
+  title?: string | null;
+  content: string;
+  tags?: string[] | null;
+  source?: string | null;
+  sensitivity?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface MemorySearchHit {
+  note: Note;
+  score: number;
+}
+
 export const endpoints = {
   health: () => api.get<HealthResponse>("/health"),
   skills: () => api.get<Skill[]>("/skills"),
   weather: () => api.get<Weather>("/weather"),
+  notes: {
+    list: (params?: {
+      types?: string[];
+      tags?: string[];
+      limit?: number;
+      offset?: number;
+    }) => {
+      const q = new URLSearchParams();
+      params?.types?.forEach((t) => q.append("types", t));
+      params?.tags?.forEach((t) => q.append("tags", t));
+      if (params?.limit) q.set("limit", String(params.limit));
+      if (params?.offset) q.set("offset", String(params.offset));
+      const qs = q.toString();
+      return api.get<Note[]>(`/notes${qs ? `?${qs}` : ""}`);
+    },
+    get: (id: string) => api.get<Note>(`/notes/${id}`),
+    create: (body: NoteIn) => api.post<Note>("/notes", body),
+    update: (id: string, body: NoteIn) => api.patch<Note>(`/notes/${id}`, body),
+    delete: (id: string) => api.delete<void>(`/notes/${id}`),
+    search: (query: string, types?: string[], limit = 10) =>
+      api.post<MemorySearchHit[]>("/notes/search", { query, types, limit }),
+  },
 };

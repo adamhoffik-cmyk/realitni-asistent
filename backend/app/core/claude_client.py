@@ -1,16 +1,25 @@
 """Wrapper okolo `claude-agent-sdk` — volá Claude Code CLI nainstalovaný na hostovi.
 
-Tento modul je zatím STUB — konkrétní implementace přijde ve Fázi 1C/1D,
-kdy bude hotové reálné volání SDK. Teď stačí, aby existoval interface.
+Využívá Claude Max subscription (žádné API klíče, žádné per-token platby).
+SDK automaticky detekuje `claude` binárku na hostu.
 
-Claude Code CLI musí být:
-1. Nainstalovaný na hostovi (`/usr/bin/claude` nebo obdobně)
-2. Přihlášený do Claude Max (`claude login`)
-3. (Volitelně) mít nainstalovaný plugin `ceske-realitni-pravo`
+Předpoklady:
+1. `/usr/bin/claude` existuje (na VPS Ubuntu 24.04 ✓)
+2. Je přihlášený `claude login` → Claude Max
+3. Plugin `legal@realitni-asistent-local` nainstalovaný (user scope)
+4. Backend container má mount `~/.claude` z hostu (viz docker-compose.yml)
+
+Streaming eventy, které vrací stream():
+- token      — jeden chunk textu (typewriter UI na frontendu)
+- tool_call  — AI rozhoduje použít nástroj
+- tool_result — výsledek nástroje
+- done       — konec odpovědi + usage
+- error      — chyba
 """
 from __future__ import annotations
 
 import logging
+import shutil
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
@@ -29,17 +38,12 @@ class ClaudeMessage:
 
 @dataclass
 class ClaudeStreamEvent:
-    """Jedna událost ze streamu — text token, tool call, tool result, done, error."""
-    type: str  # "token" | "tool_call" | "tool_result" | "done" | "error"
+    type: str  # token | tool_call | tool_result | done | error
     data: Any
 
 
 class ClaudeClient:
-    """Wrapper nad claude-agent-sdk.
-
-    Zatím STUB — skutečné volání bude implementováno, až budeme mít hotový
-    context builder + definované tooly.
-    """
+    """Wrapper nad claude-agent-sdk."""
 
     def __init__(self) -> None:
         self.cli_path = settings.claude_cli_path
@@ -52,9 +56,9 @@ class ClaudeClient:
         if self._available is not None:
             return self._available
         try:
-            import shutil
-            self._available = shutil.which(self.cli_path) is not None or bool(
-                shutil.which("claude")
+            self._available = (
+                shutil.which(self.cli_path) is not None
+                or shutil.which("claude") is not None
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Claude CLI check failed: %s", exc)
@@ -65,33 +69,138 @@ class ClaudeClient:
         self,
         messages: list[ClaudeMessage],
         system_prompt: str | None = None,
-        tools: list[dict] | None = None,
+        allowed_tools: list[str] | None = None,
+        cwd: str | None = None,
     ) -> AsyncIterator[ClaudeStreamEvent]:
         """Streamuje odpověď z Clauda.
 
-        STUB: Dočasná implementace, která vrátí fake tokenizovanou odpověď.
-        Bude nahrazeno reálným voláním claude-agent-sdk ve Fázi 1D.
+        Argumenty:
+            messages: historie konverzace (poslední je user).
+            system_prompt: system prompt modifier (např. z skill contextu).
+            allowed_tools: whitelist toolů. Default None = plugin defaults.
+            cwd: working directory pro Claude (default: /app).
         """
         if not await self.is_available():
             yield ClaudeStreamEvent(
                 type="error",
-                data="Claude Code CLI není dostupný. Nainstaluj ho a přihlaš se do Claude Max.",
+                data="Claude Code CLI není dostupný na hostu. Nainstaluj ho a přihlaš se do Claude Max.",
             )
             return
 
-        # STUB odpověď — echo poslední uživatelské zprávy
-        last_user = next(
-            (m.content for m in reversed(messages) if m.role == "user"),
-            "",
+        # Claude Agent SDK import — lazy, aby nepadal app startup, když sdk chybí
+        try:
+            from claude_agent_sdk import ClaudeAgentOptions, query
+        except ImportError as exc:
+            yield ClaudeStreamEvent(type="error", data=f"claude-agent-sdk import failed: {exc}")
+            return
+
+        # Sestavit prompt — last user message jako vstup
+        user_messages = [m for m in messages if m.role == "user"]
+        if not user_messages:
+            yield ClaudeStreamEvent(type="error", data="Žádná uživatelská zpráva")
+            return
+        prompt = user_messages[-1].content
+
+        # History kontext (všechny předchozí turny) přidáme do system promptu
+        history_text = ""
+        if len(messages) > 1:
+            history_lines = []
+            for m in messages[:-1]:
+                label = {"user": "Uživatel", "assistant": "Asistent", "system": "Systém"}.get(
+                    m.role, m.role
+                )
+                history_lines.append(f"{label}: {m.content}")
+            history_text = "\n\nPředchozí konverzace:\n" + "\n".join(history_lines)
+
+        full_system_prompt = (system_prompt or "") + history_text
+        if not full_system_prompt.strip():
+            full_system_prompt = None
+
+        options = ClaudeAgentOptions(
+            include_partial_messages=True,
+            system_prompt=full_system_prompt,
+            cwd=cwd or "/app",
         )
-        stub_response = (
-            f"🟢 [STUB] Claude wrapper zatím jen echuje. "
-            f"Dostal jsem: {last_user!r}. "
-            f"Reálné volání bude implementováno ve Fázi 1D."
-        )
-        for ch in stub_response:
-            yield ClaudeStreamEvent(type="token", data=ch)
-        yield ClaudeStreamEvent(type="done", data={"tokens": len(stub_response)})
+        if allowed_tools:
+            options.allowed_tools = allowed_tools
+
+        total_output_tokens = 0
+
+        try:
+            async for msg in query(prompt=prompt, options=options):
+                # Rozlišit typ události
+                msg_type = type(msg).__name__
+
+                # StreamEvent — inkrementální token/tool updaty
+                if msg_type == "StreamEvent":
+                    event = getattr(msg, "event", None)
+                    if not event:
+                        continue
+                    ev_type = event.get("type")
+
+                    # Text delta → token event
+                    if ev_type == "content_block_delta":
+                        delta = event.get("delta", {})
+                        if delta.get("type") == "text_delta":
+                            text = delta.get("text", "")
+                            if text:
+                                yield ClaudeStreamEvent(type="token", data=text)
+                        elif delta.get("type") == "input_json_delta":
+                            # Tool input builds up — neposíláme průběžně
+                            pass
+
+                    # Tool use start
+                    elif ev_type == "content_block_start":
+                        block = event.get("content_block", {})
+                        if block.get("type") == "tool_use":
+                            yield ClaudeStreamEvent(
+                                type="tool_call",
+                                data={
+                                    "id": block.get("id"),
+                                    "name": block.get("name"),
+                                },
+                            )
+
+                # AssistantMessage — hotová zpráva (po všech StreamEvents)
+                elif msg_type == "AssistantMessage":
+                    # Obsah už byl vyposílaný přes StreamEvents
+                    pass
+
+                # ToolResultBlock / UserMessage s tool result
+                elif msg_type in ("ToolResultMessage", "UserMessage"):
+                    # Nemusíme se tím teď zaobírat — tool_result může jít po SDK smyčce
+                    pass
+
+                # ResultMessage — finální status s usage + cost
+                elif msg_type == "ResultMessage":
+                    usage = getattr(msg, "usage", None)
+                    if usage:
+                        total_output_tokens = getattr(usage, "output_tokens", 0)
+                    cost = getattr(msg, "total_cost_usd", None)
+                    yield ClaudeStreamEvent(
+                        type="done",
+                        data={
+                            "tokens": total_output_tokens,
+                            "cost_usd": cost,
+                        },
+                    )
+                    return
+
+                # System / Init messages (debug)
+                elif msg_type == "SystemMessage":
+                    logger.debug("SystemMessage: %s", msg)
+
+                else:
+                    logger.debug("Unknown msg type %s: %s", msg_type, msg)
+
+            # Fallback: když SDK skončí bez ResultMessage
+            yield ClaudeStreamEvent(
+                type="done", data={"tokens": total_output_tokens, "cost_usd": None}
+            )
+
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Claude stream error")
+            yield ClaudeStreamEvent(type="error", data=f"Claude SDK chyba: {exc}")
 
 
 _client: ClaudeClient | None = None

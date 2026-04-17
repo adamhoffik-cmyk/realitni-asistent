@@ -1,22 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { endpoints } from "@/lib/api";
 
 export function QuickNote() {
   const [text, setText] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">(
     "idle"
   );
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
   const save = async () => {
     if (!text.trim()) return;
     setStatus("saving");
-    // TODO Fáze 2: volat /api/notes
-    // Zatím simulujeme uložení s timeoutem, abychom viděli flow
-    await new Promise((r) => setTimeout(r, 500));
-    setStatus("saved");
-    setText("");
-    setTimeout(() => setStatus("idle"), 2000);
+    setErrorMsg("");
+    try {
+      await endpoints.notes.create({
+        type: "note",
+        content: text.trim(),
+        sensitivity: "internal",
+      });
+      setStatus("saved");
+      setText("");
+      setTimeout(() => setStatus("idle"), 2500);
+    } catch (e: any) {
+      setStatus("error");
+      setErrorMsg(e?.detail || "Chyba uložení");
+      setTimeout(() => setStatus("idle"), 4000);
+    }
   };
 
   return (
@@ -25,15 +36,22 @@ export function QuickNote() {
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Co si chceš zapamatovat?"
+        onKeyDown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            save();
+          }
+        }}
+        placeholder="Co si chceš zapamatovat? (Ctrl+Enter pro odeslání)"
         rows={3}
         className="w-full bg-transparent border border-matrix rounded p-2 text-matrix placeholder:text-matrix-dim/50 text-sm focus:outline-none focus:shadow-matrix-glow resize-none"
+        disabled={status === "saving"}
       />
       <div className="flex items-center justify-between mt-2">
         <span className="text-xs text-matrix-dim">
           {status === "saving" && "Ukládám…"}
           {status === "saved" && "✓ Zapamatováno"}
-          {status === "error" && "⚠ Chyba"}
+          {status === "error" && `⚠ ${errorMsg}`}
         </span>
         <button
           onClick={save}
@@ -43,9 +61,6 @@ export function QuickNote() {
           Uložit
         </button>
       </div>
-      <p className="text-xs text-matrix-dim/60 mt-2 italic">
-        Poznámka: full backend napojení přijde ve Fázi 2 (paměť + ChromaDB).
-      </p>
     </div>
   );
 }

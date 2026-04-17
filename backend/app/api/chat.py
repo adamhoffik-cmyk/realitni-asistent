@@ -1,7 +1,9 @@
 """Chat API — WebSocket streaming + REST historie.
 
-Fáze 1D stub: WebSocket funguje, ale claude_client je STUB (echo). Skutečné
-volání claude-agent-sdk přijde po zprovoznění základního deploy (Fáze 2).
+Fáze 2 verze — plné napojení na Claude Agent SDK:
+- historie session v SQLite
+- system prompt s RAG kontextem (ChromaDB) přes context_builder
+- streamování tokenů do WebSocketu
 """
 from __future__ import annotations
 
@@ -14,12 +16,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.claude_client import ClaudeMessage, get_claude_client
+from app.core.context_builder import build_system_prompt, resolve_allowed_tools
 from app.db import AsyncSessionLocal, get_db
 from app.models.db_models import ConversationSession, ConversationTurn
 from app.models.schemas import ChatMessageOut
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+# Kolik posledních turnů zahrnout do SDK historie (sliding window)
+MAX_HISTORY_TURNS = 20
 
 
 @router.get("/sessions/{session_id}/turns", response_model=list[ChatMessageOut])
@@ -45,8 +51,15 @@ async def chat_ws(websocket: WebSocket) -> None:
     """WebSocket endpoint pro streamovaný chat.
 
     Protokol:
-      Client → { "message": str, "session_id": str | null, "context": "home" | str }
-      Server → { "type": "token|tool_call|tool_result|done|error|session", "data": ... }
+      Client → {
+          "message": str,
+          "session_id": str | null,
+          "context": "home" | "<skill_id>"
+      }
+      Server → {
+          "type": "session|token|tool_call|tool_result|done|error",
+          "data": ...
+      }
     """
     await websocket.accept()
     claude = get_claude_client()
@@ -68,7 +81,7 @@ async def chat_ws(websocket: WebSocket) -> None:
                 await websocket.send_json({"type": "error", "data": "Prázdná zpráva"})
                 continue
 
-            # ---- 1. Získej nebo vytvoř session + ulož user turn
+            # ---- 1. Session management + uložení user turn
             async with AsyncSessionLocal() as db:
                 if session_id:
                     sess = (
@@ -97,17 +110,62 @@ async def chat_ws(websocket: WebSocket) -> None:
                 db.add(user_turn)
                 await db.commit()
 
-                await websocket.send_json({"type": "session", "data": {"id": session_id}})
+                await websocket.send_json(
+                    {"type": "session", "data": {"id": session_id}}
+                )
 
-            # ---- 2. Sestav historii pro Clauda (stub — jen poslední user)
-            messages = [ClaudeMessage(role="user", content=user_message)]
+                # ---- 2. Load history (sliding window)
+                history_turns = (
+                    (
+                        await db.execute(
+                            select(ConversationTurn)
+                            .where(ConversationTurn.session_id == session_id)
+                            .order_by(ConversationTurn.created_at.desc())
+                            .limit(MAX_HISTORY_TURNS)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                history_turns = list(reversed(history_turns))
 
-            # ---- 3. Stream odpovědi
+                messages = [
+                    ClaudeMessage(role=t.role, content=t.content) for t in history_turns
+                ]
+
+                # ---- 3. Sestav system prompt (kontext + RAG)
+                try:
+                    system_prompt = await build_system_prompt(
+                        db, user_message=user_message, context=context
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.exception("context_builder selhal")
+                    system_prompt = (
+                        "Jsi AI asistent realitního makléře. Odpovídej česky."
+                    )
+
+            allowed_tools = resolve_allowed_tools(context)
+
+            # ---- 4. Stream from Claude
             buffer: list[str] = []
-            async for event in claude.stream(messages):
+            async for event in claude.stream(
+                messages,
+                system_prompt=system_prompt,
+                allowed_tools=allowed_tools,
+            ):
                 if event.type == "token":
                     buffer.append(event.data)
-                    await websocket.send_json({"type": "token", "data": event.data})
+                    await websocket.send_json(
+                        {"type": "token", "data": event.data}
+                    )
+                elif event.type == "tool_call":
+                    await websocket.send_json(
+                        {"type": "tool_call", "data": event.data}
+                    )
+                elif event.type == "tool_result":
+                    await websocket.send_json(
+                        {"type": "tool_result", "data": event.data}
+                    )
                 elif event.type == "done":
                     full_text = "".join(buffer)
                     async with AsyncSessionLocal() as db:
@@ -115,15 +173,15 @@ async def chat_ws(websocket: WebSocket) -> None:
                             session_id=session_id,
                             role="assistant",
                             content=full_text,
-                            tokens=event.data.get("tokens") if isinstance(event.data, dict) else None,
+                            tokens=(event.data or {}).get("tokens")
+                            if isinstance(event.data, dict)
+                            else None,
                         )
                         db.add(assistant_turn)
                         await db.commit()
                     await websocket.send_json({"type": "done", "data": event.data})
                 elif event.type == "error":
                     await websocket.send_json({"type": "error", "data": event.data})
-                else:
-                    await websocket.send_json({"type": event.type, "data": event.data})
 
     except WebSocketDisconnect:
         logger.info("Chat WS disconnected")
