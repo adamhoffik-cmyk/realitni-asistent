@@ -120,6 +120,10 @@ class ClaudeClient:
             include_partial_messages=True,
             system_prompt=full_system_prompt,
             cwd=cwd or "/app",
+            # bypassPermissions — Claude v subprocess módu nevyžaduje
+            # interactive approval pro MCP / plugin nástroje. Aplikace je
+            # naše, všechny tooly jsou dopředu schválené.
+            permission_mode="bypassPermissions",
         )
         if allowed_tools:
             options.allowed_tools = allowed_tools
