@@ -1,0 +1,8 @@
+{
+  "name": "legal",
+  "version": "2.0.0-cz",
+  "description": "Právní plugin pro české prostředí a realitní praxi. Kontrola smluv, posouzení NDA, GDPR compliance, hodnocení rizik a právní briefingy — vše v češtině a podle českého práva.",
+  "author": {
+    "name": "Anthropic (upraveno pro ČR)"
+  }
+}
