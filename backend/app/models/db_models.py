@@ -163,6 +163,48 @@ class NewsItem(Base):
 # --------------------------------------------------------------------------- #
 # Oblíbené novinky (pro workflow News → Article)
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# Nábor activities tracker
+# --------------------------------------------------------------------------- #
+class NaborActivity(Base):
+    __tablename__ = "nabor_activities"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    date: Mapped[str] = mapped_column(String(10), index=True)  # YYYY-MM-DD
+    activity_type: Mapped[str] = mapped_column(String(32))
+    # dopis | cold_call | setkani | schuzka | sfera_vlivu | jiny
+    count: Mapped[int] = mapped_column(Integer, default=1)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    outcome: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # ne_zajem | mozna_pozdeji | schuzka_dohodnuta | zakazka_podepsana | other
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now)
+
+
+# --------------------------------------------------------------------------- #
+# Sféra vlivu — evidence osob pro pravidelný kontakt (3× ročně)
+# --------------------------------------------------------------------------- #
+class SpheraPerson(Base):
+    __tablename__ = "sfera_persons"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    full_name: Mapped[str] = mapped_column(String(256), index=True)
+    phone_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    email_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    relationship: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # rodina | pritel | byvaly_klient | znamy | kolega | jiny
+    last_contact_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_contact_channel: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # phone | email | personal | whatsapp | sms
+    target_interval_months: Mapped[int] = mapped_column(Integer, default=4)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utc_now, onupdate=_utc_now
+    )
+
+
 class FavoriteNews(Base):
     __tablename__ = "favorite_news"
 
@@ -255,10 +297,12 @@ __all__ = [
     "ConversationSession",
     "ConversationTurn",
     "FavoriteNews",
+    "NaborActivity",
     "NewsItem",
     "Note",
     "OAuthToken",
     "Setting",
     "Skill",
+    "SpheraPerson",
     "VideoScript",
 ]

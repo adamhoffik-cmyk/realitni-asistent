@@ -139,6 +139,16 @@ export interface NewsItem {
   is_favorite?: boolean;
 }
 
+// ----- Videos -----
+export interface VideoScript {
+  id: string;
+  source_url: string;
+  transcript_md: string;
+  script_md: string | null;
+  duration_sec: number | null;
+  created_at: string;
+}
+
 // ----- Articles -----
 export interface Article {
   id: string;
@@ -164,10 +174,36 @@ export interface FavoriteNews {
   news: NewsItem | null;
 }
 
+// ----- Calendar -----
+export interface CalendarEvent {
+  id: string;
+  summary: string;
+  start: string | null;
+  end: string | null;
+  description: string | null;
+  location: string | null;
+  html_link: string | null;
+}
+
 export const endpoints = {
   health: () => api.get<HealthResponse>("/health"),
   skills: () => api.get<Skill[]>("/skills"),
   weather: () => api.get<Weather>("/weather"),
+  calendar: {
+    authStatus: () =>
+      api.get<{ authorized: boolean; service: string }>("/auth/google/status"),
+    events: (daysAhead = 14) =>
+      api.get<CalendarEvent[]>(`/calendar/events?days_ahead=${daysAhead}`),
+    createEvent: (body: {
+      summary: string;
+      start: string;
+      end: string;
+      description?: string;
+      location?: string;
+      attendees?: string[];
+    }) => api.post<CalendarEvent>("/calendar/events", body),
+    deleteEvent: (id: string) => api.delete<void>(`/calendar/events/${id}`),
+  },
   notes: {
     list: (params?: {
       types?: string[];
@@ -195,6 +231,15 @@ export const endpoints = {
     refresh: () => api.post<{ sources: Record<string, Record<string, number>> }>(
       "/news/refresh"
     ),
+  },
+  videos: {
+    list: () => api.get<VideoScript[]>("/videos"),
+    get: (id: string) => api.get<VideoScript>(`/videos/${id}`),
+    transcribe: (url: string) =>
+      api.post<VideoScript>("/videos/transcribe", { url }),
+    generateScript: (id: string, opts?: { format?: string; angle?: string }) =>
+      api.post<VideoScript>(`/videos/${id}/generate-script`, opts || {}),
+    delete: (id: string) => api.delete<void>(`/videos/${id}`),
   },
   articles: {
     list: (status?: string) =>

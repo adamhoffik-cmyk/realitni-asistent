@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Database, Heart } from "lucide-react";
+import { Database, Heart, Users, Target } from "lucide-react";
 import { Header } from "@/components/Header";
 import { WeatherWidget } from "@/components/WeatherWidget";
+import { CalendarWidget } from "@/components/CalendarWidget";
 import { NewsWidget } from "@/components/NewsWidget";
 import { SkillTile } from "@/components/SkillTile";
 import { QuickNote } from "@/components/QuickNote";
@@ -54,10 +55,7 @@ export default function HomePage() {
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           <WeatherWidget />
 
-          <PlaceholderTile
-            title="📅 Kalendář"
-            subtitle="Google Calendar integrace — Fáze 2"
-          />
+          <CalendarWidget />
 
           <PlaceholderTile
             title="☀ Ranní briefing"
@@ -81,6 +79,18 @@ export default function HomePage() {
             className="inline-flex items-center gap-2 px-4 py-2 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition"
           >
             <Heart size={16} /> Oblíbené
+          </Link>
+          <Link
+            href="/skills/nabor"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition"
+          >
+            <Target size={16} /> Nábor
+          </Link>
+          <Link
+            href="/skills/sfera"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition"
+          >
+            <Users size={16} /> Sféra vlivu
           </Link>
         </section>
 

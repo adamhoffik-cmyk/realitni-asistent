@@ -8,7 +8,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import articles, chat, favorites, health, news, notes, skills, weather
+from app.api import (
+    articles,
+    auth,
+    calendar,
+    chat,
+    favorites,
+    health,
+    nabor,
+    news,
+    notes,
+    sfera,
+    skills,
+    videos,
+    weather,
+)
 from app.config import get_settings
 from app.db import Base, engine, enable_sqlite_wal
 from app.scheduler.startup import start_scheduler, stop_scheduler
@@ -79,6 +93,11 @@ app.include_router(notes.router, prefix="/api")
 app.include_router(news.router, prefix="/api")
 app.include_router(favorites.router, prefix="/api")
 app.include_router(articles.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+app.include_router(calendar.router, prefix="/api")
+app.include_router(videos.router, prefix="/api")
+app.include_router(nabor.router, prefix="/api")
+app.include_router(sfera.router, prefix="/api")
 
 
 @app.get("/")

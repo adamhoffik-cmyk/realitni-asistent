@@ -7,11 +7,13 @@ from app.models.db_models import (
     ConversationSession,
     ConversationTurn,
     FavoriteNews,
+    NaborActivity,
     NewsItem,
     Note,
     OAuthToken,
     Setting,
     Skill,
+    SpheraPerson,
     VideoScript,
 )
 
@@ -22,10 +24,12 @@ __all__ = [
     "ConversationSession",
     "ConversationTurn",
     "FavoriteNews",
+    "NaborActivity",
     "NewsItem",
     "Note",
     "OAuthToken",
     "Setting",
     "Skill",
+    "SpheraPerson",
     "VideoScript",
 ]
