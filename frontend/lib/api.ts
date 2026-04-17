@@ -174,6 +174,21 @@ export interface FavoriteNews {
   news: NewsItem | null;
 }
 
+// ----- Status / Health -----
+export interface CheckResult {
+  id: string;
+  name: string;
+  status: "ok" | "warning" | "error" | "info";
+  message: string;
+  details?: Record<string, unknown> | null;
+}
+
+export interface StatusResponse {
+  overall: "ok" | "warning" | "error";
+  checks: CheckResult[];
+  generated_at: string;
+}
+
 // ----- Gmail -----
 export interface GmailMessage {
   id: string;
@@ -201,6 +216,7 @@ export interface CalendarEvent {
 
 export const endpoints = {
   health: () => api.get<HealthResponse>("/health"),
+  status: () => api.get<StatusResponse>("/status"),
   skills: () => api.get<Skill[]>("/skills"),
   weather: () => api.get<Weather>("/weather"),
   gmail: {

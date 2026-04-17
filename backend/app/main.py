@@ -21,6 +21,7 @@ from app.api import (
     notes,
     sfera,
     skills,
+    status,
     videos,
     weather,
 )
@@ -100,6 +101,7 @@ app.include_router(videos.router, prefix="/api")
 app.include_router(nabor.router, prefix="/api")
 app.include_router(sfera.router, prefix="/api")
 app.include_router(gmail.router, prefix="/api")
+app.include_router(status.router, prefix="/api")
 
 
 @app.get("/")
