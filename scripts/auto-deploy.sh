@@ -85,8 +85,10 @@ if [[ ${#SERVICES[@]} -gt 0 ]]; then
     log "Buildim + restartuji: ${SERVICES[*]}"
     docker compose --profile production up -d --build "${SERVICES[@]}" 2>&1 | tee -a "$LOG"
 
-    # Úklid staré image layers (uvolni disk)
+    # Úklid staré image layers + build cache (uvolni disk po každém buildu)
+    # Build cache filter until=24h drží jen poslední den cache vrstev.
     docker image prune -f 2>&1 | tail -2 | tee -a "$LOG"
+    docker builder prune -f --filter "until=24h" 2>&1 | tail -2 | tee -a "$LOG"
 fi
 
 log "=== Deploy hotov ✓ ==="
