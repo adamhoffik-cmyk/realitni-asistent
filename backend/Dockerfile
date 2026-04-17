@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# ---- Build stage ----
+# ---- Build stage (Python deps) ----
 FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,7 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# System deps pro faster-whisper (ffmpeg) + build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         ffmpeg \
@@ -21,13 +20,11 @@ COPY pyproject.toml ./
 RUN pip install --upgrade pip && \
     pip install -e . --no-deps --no-cache-dir
 
-# PyTorch CPU-only (bez CUDA libs — ušetří ~2 GB v image).
-# Musí být první, aby ostatní deps (sentence-transformers) vzaly tenhle torch.
+# PyTorch CPU-only (ušetří ~2 GB)
 RUN pip install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cpu \
         torch>=2.5.0
 
-# Ostatní závislosti
 RUN pip install --no-cache-dir \
         fastapi>=0.115.0 \
         "uvicorn[standard]>=0.32.0" \
@@ -61,7 +58,6 @@ RUN pip install --no-cache-dir \
         loguru>=0.7.2 \
         orjson>=3.10.12
 
-# Clean pip + wheel cache to shrink builder layer
 RUN rm -rf /root/.cache/pip /tmp/*
 
 # ---- Runtime stage ----
@@ -69,14 +65,23 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/root/.local/bin:$PATH"
+    PATH="/usr/local/bin:/usr/bin:/bin"
 
+# System packages + Node.js 22 (pro Claude Code CLI)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         curl \
         ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && adduser --disabled-password --gecos "" --uid 1000 app
+        gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g @anthropic-ai/claude-code \
+    && rm -rf /var/lib/apt/lists/* /root/.npm \
+    && adduser --disabled-password --gecos "" --uid 1000 --home /home/app app
 
 WORKDIR /app
 
@@ -87,9 +92,10 @@ COPY app ./app
 RUN mkdir -p data/chroma data/reference_articles data/articles/drafts \
              data/articles/published data/transcripts data/video_scripts \
              data/uploads && \
-    chown -R app:app /app
+    chown -R app:app /app /home/app
 
 USER app
+ENV HOME=/home/app
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

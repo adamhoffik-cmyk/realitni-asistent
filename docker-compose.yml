@@ -24,10 +24,10 @@ services:
       - CHROMA_PERSIST_DIR=./data/chroma
     volumes:
       - ./backend/data:/app/data
-      # Claude Code CLI + pluginy — read-only mount z hosta
-      # V Dockeru nebude dostupný, dokud ho ve Fázi 1I neautorizujeme.
-      # Na Windows (Docker Desktop) se tento mount přeskočí přes .env override.
-      - ${CLAUDE_HOME:-./.skip}:/home/app/.claude:ro
+      # Claude Code CLI login + pluginy — sdíleno s hostem (rw kvůli session state).
+      # V backend containeru je Claude CLI nainstalovaný (viz Dockerfile), ale
+      # ~/.claude/ s credentials + plugins musí být na hostu (Claude Max login).
+      - ${CLAUDE_HOME:-./.skip}:/home/app/.claude
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped
