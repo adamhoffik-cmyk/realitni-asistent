@@ -81,7 +81,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends nodejs \
     && npm install -g @anthropic-ai/claude-code \
     && rm -rf /var/lib/apt/lists/* /root/.npm \
-    && adduser --disabled-password --gecos "" --uid 1000 --home /home/app app
+    && useradd -m -s /bin/bash -u 1000 app
 
 WORKDIR /app
 
