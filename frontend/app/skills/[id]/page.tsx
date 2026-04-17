@@ -1,23 +1,23 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { endpoints, type Skill } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { ChatPanel } from "@/components/ChatPanel";
 
-export default function SkillPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+export default function SkillPage() {
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
+
   const [skill, setSkill] = useState<Skill | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
     endpoints
       .skills()
       .then((list) => {
