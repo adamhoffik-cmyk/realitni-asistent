@@ -17,11 +17,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Instalace závislostí
 COPY pyproject.toml ./
 RUN pip install --upgrade pip && \
-    pip install -e . --no-deps && \
-    pip install \
+    pip install -e . --no-deps --no-cache-dir
+
+# PyTorch CPU-only (bez CUDA libs — ušetří ~2 GB v image).
+# Musí být první, aby ostatní deps (sentence-transformers) vzaly tenhle torch.
+RUN pip install --no-cache-dir \
+        --index-url https://download.pytorch.org/whl/cpu \
+        torch>=2.5.0
+
+# Ostatní závislosti
+RUN pip install --no-cache-dir \
         fastapi>=0.115.0 \
         "uvicorn[standard]>=0.32.0" \
         websockets>=13.1 \
@@ -53,6 +60,9 @@ RUN pip install --upgrade pip && \
         python-dotenv>=1.0.1 \
         loguru>=0.7.2 \
         orjson>=3.10.12
+
+# Clean pip + wheel cache to shrink builder layer
+RUN rm -rf /root/.cache/pip /tmp/*
 
 # ---- Runtime stage ----
 FROM python:3.11-slim

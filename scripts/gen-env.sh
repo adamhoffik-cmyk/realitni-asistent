@@ -60,6 +60,10 @@ SEARXNG_KEY=$(gen_key)
 
 LOG "Zapisuji do .env…"
 
+# Escape $ v bcrypt hashi — docker-compose interpretuje $FOO jako env var.
+# Double $$ = literal $ pro docker-compose.
+BA_HASH_ESC="${BA_HASH//\$/\$\$}"
+
 # Sed edit-in-place
 sed -i "s|^APP_ENV=.*|APP_ENV=production|" .env
 sed -i "s|^APP_BASE_URL=.*|APP_BASE_URL=https://$DOMAIN|" .env
@@ -68,7 +72,7 @@ sed -i "s|^BACKEND_SECRET_KEY=.*|BACKEND_SECRET_KEY=$BACKEND_KEY|" .env
 sed -i "s|^PII_ENCRYPTION_KEY=.*|PII_ENCRYPTION_KEY=$PII_KEY|" .env
 sed -i "s|^SEARXNG_SECRET=.*|SEARXNG_SECRET=$SEARXNG_KEY|" .env
 sed -i "s|^CADDY_BASIC_AUTH_USER=.*|CADDY_BASIC_AUTH_USER=$BA_USER|" .env
-sed -i "s|^CADDY_BASIC_AUTH_HASH=.*|CADDY_BASIC_AUTH_HASH=$BA_HASH|" .env
+sed -i "s|^CADDY_BASIC_AUTH_HASH=.*|CADDY_BASIC_AUTH_HASH=$BA_HASH_ESC|" .env
 sed -i "s|^CADDY_DOMAIN=.*|CADDY_DOMAIN=$DOMAIN|" .env
 sed -i "s|^CADDY_EMAIL=.*|CADDY_EMAIL=$EMAIL|" .env
 sed -i "s|^NEXT_PUBLIC_API_BASE_URL=.*|NEXT_PUBLIC_API_BASE_URL=https://$DOMAIN|" .env
