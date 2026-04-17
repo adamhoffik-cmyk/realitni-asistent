@@ -25,12 +25,11 @@ services:
     volumes:
       - ./backend/data:/app/data
       # Claude Code CLI login + pluginy — sdíleno s hostem (rw kvůli session state).
-      # Kontejner běží jako root, takže mapujeme /root/.claude (host) → /root/.claude (container).
-      - ${CLAUDE_HOME:-./.skip}:/root/.claude
-      # Hlavní config soubor Claude CLI (separátní od /root/.claude/ adresáře).
-      # Pokud na hostu neexistuje, vytvoř ho před prvním spuštěním:
-      #   cp /root/.claude/backups/.claude.json.backup.<timestamp> /root/.claude.json
-      - ${CLAUDE_JSON:-./.skip/.claude.json}:/root/.claude.json
+      # Kontejner běží jako UID 1000, takže mountované soubory na hostu
+      # MUSÍ být vlastněné UID 1000 — spusť jednorázově:
+      #   bash scripts/fix-claude-permissions.sh
+      - ${CLAUDE_HOME:-./.skip}:/home/app/.claude
+      - ${CLAUDE_JSON:-./.skip/.claude.json}:/home/app/.claude.json
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped

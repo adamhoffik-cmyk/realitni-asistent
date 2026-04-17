@@ -99,13 +99,15 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app ./app
 RUN mkdir -p data/chroma data/reference_articles data/articles/drafts \
              data/articles/published data/transcripts data/video_scripts \
-             data/uploads
+             data/uploads \
+    && chown -R 1000:1000 /app /home/app
 
-# Kontejner běží jako root — sdílené UID s mountovaným /root/.claude z hostu.
-# Pro single-user on-premise aplikaci akceptovatelná volba (úspora boje s
-# permissions mezi hostem a containerem). Všechny služby jsou stejně izolované
-# v Docker networku a Caddy je jediná veřejná plocha.
-ENV HOME=/root
+# Kontejner běží jako non-root (UID 1000 = user 'app'). Důvod:
+# Claude Code CLI blokuje --dangerously-skip-permissions pro root uživatele
+# ("security reasons"). Mounty z hostu musí být chown -R 1000:1000 aby měl
+# container přístup — viz scripts/fix-claude-permissions.sh.
+USER app
+ENV HOME=/home/app
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
