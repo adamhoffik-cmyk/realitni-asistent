@@ -30,6 +30,12 @@ out/
 *.key
 !*.pub.key
 
+# Google OAuth stažené credentials (NIKDY do gitu)
+client_secret*.json
+credentials*.json
+token*.json
+/service-account*.json
+
 # ===== Data (per uživatelské rozhodnutí zatím bez záloh) =====
 backend/data/
 !backend/data/.gitkeep

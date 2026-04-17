@@ -14,6 +14,7 @@ from app.api import (
     calendar,
     chat,
     favorites,
+    gmail,
     health,
     nabor,
     news,
@@ -98,6 +99,7 @@ app.include_router(calendar.router, prefix="/api")
 app.include_router(videos.router, prefix="/api")
 app.include_router(nabor.router, prefix="/api")
 app.include_router(sfera.router, prefix="/api")
+app.include_router(gmail.router, prefix="/api")
 
 
 @app.get("/")

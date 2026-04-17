@@ -174,6 +174,20 @@ export interface FavoriteNews {
   news: NewsItem | null;
 }
 
+// ----- Gmail -----
+export interface GmailMessage {
+  id: string;
+  thread_id?: string | null;
+  snippet: string;
+  sender: string;
+  to: string;
+  subject: string;
+  date: string;
+  body: string;
+  label_ids: string[];
+  is_unread: boolean;
+}
+
 // ----- Calendar -----
 export interface CalendarEvent {
   id: string;
@@ -189,6 +203,30 @@ export const endpoints = {
   health: () => api.get<HealthResponse>("/health"),
   skills: () => api.get<Skill[]>("/skills"),
   weather: () => api.get<Weather>("/weather"),
+  gmail: {
+    profile: () => api.get<{ emailAddress: string; messagesTotal: number }>("/gmail/profile"),
+    messages: (params?: { query?: string; max_results?: number; full?: boolean }) => {
+      const q = new URLSearchParams();
+      if (params?.query) q.set("query", params.query);
+      if (params?.max_results) q.set("max_results", String(params.max_results));
+      if (params?.full) q.set("full", "true");
+      const qs = q.toString();
+      return api.get<GmailMessage[]>(`/gmail/messages${qs ? `?${qs}` : ""}`);
+    },
+    get: (id: string) => api.get<GmailMessage>(`/gmail/messages/${id}`),
+    send: (body: {
+      to: string;
+      subject: string;
+      body: string;
+      cc?: string[];
+      bcc?: string[];
+      html?: boolean;
+      thread_id?: string | null;
+    }) => api.post<{ ok: boolean; id: string; thread_id?: string }>("/gmail/send", body),
+    draft: (body: { to: string; subject: string; body: string; cc?: string[] }) =>
+      api.post<{ ok: boolean; id: string }>("/gmail/drafts", body),
+    markRead: (id: string) => api.post<void>(`/gmail/messages/${id}/mark-read`),
+  },
   calendar: {
     authStatus: () =>
       api.get<{ authorized: boolean; service: string }>("/auth/google/status"),

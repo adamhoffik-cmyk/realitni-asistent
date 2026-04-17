@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Database, Heart, Users, Target } from "lucide-react";
+import { Database, Heart, Users, Target, Mail } from "lucide-react";
 import { Header } from "@/components/Header";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { CalendarWidget } from "@/components/CalendarWidget";
@@ -10,6 +10,7 @@ import { NewsWidget } from "@/components/NewsWidget";
 import { SkillTile } from "@/components/SkillTile";
 import { QuickNote } from "@/components/QuickNote";
 import { RecentNotesWidget } from "@/components/RecentNotesWidget";
+import { GmailWidget } from "@/components/GmailWidget";
 import { ChatPanel } from "@/components/ChatPanel";
 import { endpoints, type Skill } from "@/lib/api";
 
@@ -58,10 +59,7 @@ export default function HomePage() {
 
           <CalendarWidget />
 
-          <PlaceholderTile
-            title="☀ Ranní briefing"
-            subtitle="Automatický souhrn v 7:00 — Fáze 5"
-          />
+          <GmailWidget />
 
           <QuickNote />
 
@@ -94,6 +92,12 @@ export default function HomePage() {
             className="inline-flex items-center gap-2 px-4 py-2 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition"
           >
             <Users size={16} /> Sféra vlivu
+          </Link>
+          <Link
+            href="/mail"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-matrix text-matrix rounded hover:shadow-matrix-glow transition"
+          >
+            <Mail size={16} /> Gmail
           </Link>
         </section>
 
