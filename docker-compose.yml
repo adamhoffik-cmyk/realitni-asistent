@@ -85,11 +85,13 @@ services:
       - ./tailscale-certs:/etc/ssl/tailscale:ro
       - caddy-data:/data
       - caddy-config:/config
-    # Port 443 přístupný jen z tailnet (UFW filtruje 100.64.0.0/10).
-    # Port 80 nepotřebujeme — nechceme Let's Encrypt HTTP-01 challenge.
+    # Port 443 bindne JEN na tailnet IP z env (TAILSCALE_BIND_IP, např.
+    # "100.123.78.29"). Tím obcházíme Docker-vs-UFW problém — Docker
+    # publish defaultně ignoruje UFW pravidla. Když bindneme na konkrétní
+    # IP, kernel poslouchá jen na tom interface.
     ports:
-      - "443:443"
-      - "443:443/udp"
+      - "${TAILSCALE_BIND_IP:-127.0.0.1}:443:443"
+      - "${TAILSCALE_BIND_IP:-127.0.0.1}:443:443/udp"
     depends_on:
       - frontend
       - backend
