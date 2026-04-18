@@ -42,8 +42,18 @@ CHANGED=$(git diff --name-only "$LOCAL" "$REMOTE")
 log "Změněno:"
 echo "$CHANGED" | sed 's/^/   /' | tee -a "$LOG"
 
-# Pull
-git pull --ff-only origin main 2>&1 | tee -a "$LOG"
+# Pull — pokud jsou lokální modifikace (např. chmod po install-auto-deploy),
+# stash-uj je. Tenhle repo je single-user on-premise, lokální změny jsou
+# vždy accident. Když i stash selže, tvrdý reset na origin/main.
+if ! git diff --quiet HEAD -- || [[ -n $(git ls-files --others --exclude-standard) ]]; then
+    log "Detekovány lokální změny — stash-uji"
+    git stash push -u -m "auto-deploy-$(date +%s)" 2>&1 | tee -a "$LOG" || true
+fi
+
+if ! git pull --ff-only origin main 2>&1 | tee -a "$LOG"; then
+    log "Pull selhal — tvrdý reset na origin/main"
+    git reset --hard origin/main 2>&1 | tee -a "$LOG"
+fi
 
 # Rozhodni co rebuildovat — inteligentní logika
 REBUILD_BACKEND=false
