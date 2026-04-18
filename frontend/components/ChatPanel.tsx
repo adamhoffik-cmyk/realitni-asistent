@@ -51,31 +51,33 @@ export function ChatPanel({
     let cancelled = false;
 
     const restore = async () => {
-      const storedId =
-        typeof window !== "undefined"
-          ? localStorage.getItem(STORAGE_KEY(context))
-          : null;
-
-      if (!storedId) {
-        // Žádná předchozí session pro tento kontext
-        return;
-      }
-
       try {
-        const turns = await api.get<BackendTurn[]>(
-          `/chat/sessions/${storedId}/turns`
+        // Cross-device sync: server rozhodne co je "aktivní session" pro
+        // tento kontext (na základě posledních 24h activity).
+        const current = await api.get<{ id: string | null }>(
+          `/chat/sessions/current?context=${encodeURIComponent(context)}`
         );
         if (cancelled) return;
 
-        if (!turns || turns.length === 0) {
-          // Session v localStorage existuje, ale v DB nic — vyčistit
-          localStorage.removeItem(STORAGE_KEY(context));
+        if (!current.id) {
+          // Žádná aktivní session — uklidíme UI a localStorage
+          setSessionId(null);
+          setMessages([]);
+          try {
+            localStorage.removeItem(STORAGE_KEY(context));
+          } catch {
+            /* ignore */
+          }
           return;
         }
 
-        // Zobrazit posledních N turnů (stačí pro scroll, šetříme RAM)
-        const recent = turns.slice(-DISPLAY_LOAD_LIMIT);
-        setSessionId(storedId);
+        const turns = await api.get<BackendTurn[]>(
+          `/chat/sessions/${current.id}/turns`
+        );
+        if (cancelled) return;
+
+        setSessionId(current.id);
+        const recent = (turns || []).slice(-DISPLAY_LOAD_LIMIT);
         setMessages(
           recent
             .filter((t) => t.role === "user" || t.role === "assistant")
@@ -85,9 +87,37 @@ export function ChatPanel({
               content: t.content,
             }))
         );
+
+        try {
+          localStorage.setItem(STORAGE_KEY(context), current.id);
+        } catch {
+          /* ignore */
+        }
       } catch (e) {
-        // Session neexistuje (404 z DB) → začneme čerstvě
-        localStorage.removeItem(STORAGE_KEY(context));
+        // Backend nedostupný → offline fallback na localStorage cache
+        const storedId = localStorage.getItem(STORAGE_KEY(context));
+        if (!storedId) return;
+        try {
+          const turns = await api.get<BackendTurn[]>(
+            `/chat/sessions/${storedId}/turns`
+          );
+          if (cancelled) return;
+          if (turns && turns.length > 0) {
+            setSessionId(storedId);
+            setMessages(
+              turns
+                .slice(-DISPLAY_LOAD_LIMIT)
+                .filter((t) => t.role === "user" || t.role === "assistant")
+                .map((t) => ({
+                  id: t.id,
+                  role: t.role as "user" | "assistant",
+                  content: t.content,
+                }))
+            );
+          }
+        } catch {
+          /* ignore */
+        }
       }
     };
 

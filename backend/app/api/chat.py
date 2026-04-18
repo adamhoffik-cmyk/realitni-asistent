@@ -28,6 +28,39 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 MAX_HISTORY_TURNS = 20
 
 
+@router.get("/sessions/current")
+async def get_current_session(
+    context: str = "home",
+    max_age_hours: int = 24,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """Vrátí ID aktivní konverzační session pro daný kontext.
+
+    Cross-device sync: desktop i mobil dostanou stejnou session → vidí
+    stejnou historii. Pokud žádná není (nebo je starší než max_age_hours),
+    vrátí {"id": null} a frontend začne novou session automaticky při
+    prvním odeslání zprávy.
+    """
+    from datetime import timedelta
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    row = (
+        await session.execute(
+            select(ConversationSession)
+            .where(ConversationSession.context == context)
+            .where(ConversationSession.last_activity_at >= cutoff)
+            .order_by(ConversationSession.last_activity_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    return {
+        "id": row.id if row else None,
+        "context": context,
+        "last_activity_at": row.last_activity_at.isoformat() if row else None,
+    }
+
+
 @router.get("/sessions/{session_id}/turns", response_model=list[ChatMessageOut])
 async def get_session_turns(
     session_id: str, session: AsyncSession = Depends(get_db)
