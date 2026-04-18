@@ -36,6 +36,9 @@ credentials*.json
 token*.json
 /service-account*.json
 
+# Tailscale HTTPS cert + key (obnovuje se systemd timerem na VPS)
+tailscale-certs/
+
 # ===== Data (per uživatelské rozhodnutí zatím bez záloh) =====
 backend/data/
 !backend/data/.gitkeep

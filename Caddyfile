@@ -1,37 +1,49 @@
-# Caddyfile pro produkci na VPS.
-# Proměnné substituované v čase adaptace: {$VAR_NAME}
-# (Caddy 2 syntaxe, viz https://caddyserver.com/docs/caddyfile/concepts#environment-variables)
+# Caddyfile pro produkci na VPS — TAILSCALE-ONLY MODE.
+#
+# Přístup je možný JEN přes Tailscale VPN (100.64.0.0/10). Z veřejného
+# internetu je port 443 uzavřený v UFW. Let's Encrypt (HTTP-01 challenge)
+# nemůže fungovat (port 80 zavřený), proto používáme Tailscale-vygenerovaný
+# HTTPS cert (automatic renewal přes cron / systemd timer).
+#
+# Proměnné substituované v čase adaptace:
+#   {$TAILSCALE_HOSTNAME}      = asistent-vps.<tailnet>.ts.net
+#   {$CADDY_BASIC_AUTH_USER}   = adam
+#   {$CADDY_BASIC_AUTH_HASH}   = bcrypt hash
+#
+# Cert soubory mountované z hosta: /opt/realitni-asistent/tailscale-certs/
+#   - cert.pem
+#   - key.pem
 
 {
     email {$CADDY_EMAIL}
-    admin localhost:2019
+    admin off
+    # ACME (Let's Encrypt) NEPOUŽÍVÁME — máme vlastní cert z Tailscale
+    auto_https off
 }
 
-{$CADDY_DOMAIN} {
+{$TAILSCALE_HOSTNAME} {
+    tls /etc/ssl/tailscale/cert.pem /etc/ssl/tailscale/key.pem
+
     encode zstd gzip
 
-    # BasicAuth — bcrypt hash v env (escape $ → $$ v .env kvůli docker-compose)
+    # BasicAuth — druhá vrstva za Tailscale přístupem
     basic_auth {
         {$CADDY_BASIC_AUTH_USER} {$CADDY_BASIC_AUTH_HASH}
     }
 
-    # API backend (REST + WebSocket)
     handle /api/* {
         reverse_proxy asistent-backend:8000
     }
 
-    # SearXNG self-hosted search
     handle /searxng/* {
         uri strip_prefix /searxng
         reverse_proxy asistent-searxng:8080
     }
 
-    # Frontend (Next.js)
     handle {
         reverse_proxy asistent-frontend:3000
     }
 
-    # Security headers
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"

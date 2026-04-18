@@ -1,0 +1,11 @@
+[Unit]
+Description=Realitni Asistent — kontrola / obnova Tailscale HTTPS certu každý týden
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=7d
+Persistent=true
+Unit=asistent-cert-renew.service
+
+[Install]
+WantedBy=timers.target

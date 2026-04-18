@@ -80,10 +80,14 @@ services:
     logging: *default-logging
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Tailscale HTTPS cert (vygenerovaný `tailscale cert`, auto-renewal
+      # přes systemd timer viz scripts/tailscale-cert-renew.*)
+      - ./tailscale-certs:/etc/ssl/tailscale:ro
       - caddy-data:/data
       - caddy-config:/config
+    # Port 443 přístupný jen z tailnet (UFW filtruje 100.64.0.0/10).
+    # Port 80 nepotřebujeme — nechceme Let's Encrypt HTTP-01 challenge.
     ports:
-      - "80:80"
       - "443:443"
       - "443:443/udp"
     depends_on:

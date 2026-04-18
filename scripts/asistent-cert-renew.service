@@ -1,0 +1,12 @@
+[Unit]
+Description=Realitni Asistent — Tailscale HTTPS cert renewal
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/realitni-asistent
+ExecStart=/bin/bash /opt/realitni-asistent/scripts/tailscale-cert-renew.sh
+User=root
+StandardOutput=append:/var/log/asistent-tailscale-cert.log
+StandardError=append:/var/log/asistent-tailscale-cert.log
